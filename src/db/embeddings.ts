@@ -1,7 +1,8 @@
+import { type NpyResult } from "$lib/numpyLoader";
 import Dexie, { type EntityTable } from 'dexie';
 
 interface Embedding {
-    vectors: Int8Array;
+    vectors: NpyResult;
     id: number;
 }
 

@@ -1,6 +1,6 @@
-import { defineConfig } from 'vite'
+import { defineConfig } from "vite";
 import path from "path";
-import { svelte } from '@sveltejs/vite-plugin-svelte'
+import { svelte } from "@sveltejs/vite-plugin-svelte";
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -10,4 +10,8 @@ export default defineConfig({
       $lib: path.resolve("./src/lib"),
     },
   },
-})
+  assetsInclude: ["**/*.onnx"],
+  optimizeDeps: {
+    exclude: ["onnxruntime-web"],
+  },
+});

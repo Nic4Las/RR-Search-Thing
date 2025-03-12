@@ -7,7 +7,7 @@ interface NpyDtype {
 	converter?: (arr: any) => any;
 }
 
-interface NpyResult {
+export interface NpyResult {
 	dtype: string;
 	data: ArrayBufferView;
 	shape: number[];

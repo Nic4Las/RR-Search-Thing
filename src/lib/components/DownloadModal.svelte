@@ -1,82 +1,50 @@
 <script lang="ts">
 	import npyjs from "$lib/numpyLoader";
 	import { AlertCircle, Database, FileAxis3d } from "@lucide/svelte";
-	import Papa from "papaparse";
 	import { onMount } from "svelte";
-	import dataUrl from "../../assets/data.csv?url";
-	import embeddingsUrl from "../../assets/embeddings.npy?url";
+	import dataUrl from "../../assets/data_cleaned_deduped_index.json?url";
+	import embeddingsUrl from "../../assets/embeddings_deduped.npy?url";
 	import vectorDB from "../../db/embeddings";
-	import { novelDB, type NovelRaw } from "../../db/novels";
+	import { novelDB } from "../../db/novels";
 	import * as AlertDialog from "./ui/alert-dialog";
 	import { Button } from "./ui/button";
 	import { Progress } from "./ui/progress";
+	import type { ImportProgress } from "$lib/workers/jsonlWorker.worker";
+	import JsonWorker from "$lib/workers/jsonlWorker.worker?worker"; 
 
-	async function parseCSVWithProgress<T>(
-		url: string,
+	export function importNovelsFromJsonl(
+		jsonlUrl: string,
 		onProgress: (progress: number) => void,
-		onRow?: (row: T) => void,
-		onComplete?: () => void,
-	) {
-		const response = await fetch(url);
-		const contentLength = Number(response.headers.get("content-length"));
+		onComplete: () => void,
+		onError: (error: string) => void,
+	): () => void {
+		const worker = new JsonWorker();
 
-		if (!response.body) {
-			throw new Error("No response body");
-		}
+		worker.onmessage = (
+			event: MessageEvent<ImportProgress | { error: string }>,
+		) => {
+			const data = event.data;
 
-		const reader = response.body.getReader();
-		let bytesReceived = 0;
+			if ("error" in data) {
+				onError(data.error);
+				worker.terminate();
+				return;
+			}
 
-		// Create a stream that Papa Parse can consume
-		const stream = new ReadableStream({
-			start(controller) {
-				function push() {
-					reader
-						.read()
-						.then(({ done, value }) => {
-							if (done) {
-								controller.close();
-								return;
-							}
+			onProgress(data.progress);
 
-							bytesReceived += value.length;
-							// Update progress
-							if (contentLength) {
-								onProgress(bytesReceived / contentLength);
-							}
+			if (data.completed) {
+				onComplete();
+				worker.terminate();
+			}
+		};
 
-							controller.enqueue(value);
-							push();
-						})
-						.catch((err) => {
-							controller.error(err);
-						});
-				}
+		worker.postMessage({ url: jsonlUrl });
 
-				push();
-			},
-		});
-
-		const streamResponse = new Response(stream);
-		const text = await streamResponse.text();
-
-		Papa.parse<T>(text, {
-			header: true,
-			worker: true,
-			dynamicTyping: true,
-			download: true,
-			step: (results) => {
-				if (onRow) {
-					onRow(results.data);
-				}
-			},
-			complete: () => {
-				if (onComplete) {
-					onComplete();
-				}
-				onProgress(1.0);
-			},
-		});
+		// Return a cancel function
+		return () => {
+			worker.terminate();
+		};
 	}
 
 	type DownloadItem = {
@@ -90,23 +58,23 @@
 	let isFirstVisit = $state(true);
 	let isOpen = $state(false);
 	let downloadStarted = $state(false);
-	let allCompleted = $state(false);
 	let downloadItems = $state<DownloadItem[]>([
 		{
 			name: "Book Database",
-			size: "55MB",
+			size: "68.2MB",
 			progress: 0,
 			icon: Database,
 			completed: false,
 		},
 		{
 			name: "Similarity Embeddings",
-			size: "75MB",
+			size: "83.8MB",
 			progress: 0,
 			icon: FileAxis3d,
 			completed: false,
 		},
 	]);
+	let allCompleted = $state(downloadItems.every((item) => item.completed));
 
 	onMount(() => {
 		// Check if this is the first visit
@@ -124,32 +92,27 @@
 	async function startDownloads() {
 		console.log("Starting downloads, clearing existing data");
 		await novelDB.novels.clear(); // Clear existing data
-		console.log("Database cleared, starting download");
-		downloadStarted = true;
-		parseCSVWithProgress<NovelRaw>(
+
+		importNovelsFromJsonl(
 			dataUrl,
-			(newCSVProgress) => {
-				downloadItems[0].progress =  Math.round(newCSVProgress* 100);
-			},
-			(rowData) => {
-				novelDB.novels.put({
-					...rowData,
-					cover: rowData.cover ?? "",
-					tags: (rowData.tags ?? "").split(","),
-					titleWords: Array.from(new Set((String(rowData.title) ?? "").toLowerCase().split(' ')))
-				});
+			(progress) => {
+				downloadItems[0].progress = Math.round(progress * 100);
 			},
 			() => {
+				downloadItems[0].progress = 100;
 				downloadItems[0].completed = true;
-				console.log("Database download complete");
+			},
+			(error) => {
+				console.error("Error importing novels", error);
 			},
 		);
 
+		console.log("Database cleared, starting download");
+		downloadStarted = true;
+
 		const npy = new npyjs();
 
-		const embeddings = await npy.load(
-			embeddingsUrl,
-			{
+		const embeddings = await npy.load(embeddingsUrl, {
 			onProgress: (loaded, total) => {
 				downloadItems[1].progress = total
 					? Math.round((loaded / total) * 100)
@@ -159,10 +122,9 @@
 
 		vectorDB.embeddings.add({
 			vectors: embeddings,
-		})
+		});
 
 		downloadItems[1].completed = true;
-		allCompleted = true;
 		localStorage.setItem("hasVisitedBooksite", "true");
 	}
 
