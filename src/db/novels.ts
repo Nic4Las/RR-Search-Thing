@@ -7,7 +7,7 @@ interface Novel {
     url: string;
     cover: string;
     tags: string[];
-    lable: string;
+    label: string;
     followingUsers: number;
     rating: number;
     pages: number;
@@ -25,7 +25,7 @@ interface NovelRaw {
     url: string;
     cover?: string;
     tags: string[];
-    lable: string;
+    label: string;
     followingUsers: number;
     rating: number;
     pages: number;

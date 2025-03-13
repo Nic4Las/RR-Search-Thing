@@ -1,38 +1,47 @@
-
 <script lang="ts">
     import DownloadModal from "$lib/components/DownloadModal.svelte";
     import { Input } from "$lib/components/ui/input";
-    import { Search, Eye } from "@lucide/svelte";
+    import { Search, Eye, X } from "@lucide/svelte";
     import { novelDB, type Novel } from "../../db/novels";
 
-	let currentSearch = $state("");
+    // Props
+    let { novelSelected } : { novelSelected: (novel: Novel|null) => void } = $props();
 
-	let { novelSelected } : { novelSelected: (novel: Novel) => void } = $props();
+    // Core state
+    let query = $state("");
+    let suggestions = $state<Novel[]>([]);
+    let selectedIndex = $state(-1);
+    
+    // UI state
+    let hasFocus = $state(false);
+    let justSelected = $state(false);
+    let suggestionsContainer: HTMLDivElement | null = $state(null);
 
-    let suggestions: Novel[] = $state([]);
-    let showSuggestions = $state(false);
-    let inputValue = $state(""); // Temporary value for input
-    let debounceTimer: ReturnType<typeof setTimeout>; // Timer for debounce
-    let selectionJustMade = $state(false); // Flag to track when a selection was just made
-    let selectedIndex = $state(-1); // Track currently selected suggestion
-    let suggestionsContainer: HTMLDivElement; // Reference to suggestions container
+    // Derived state
+    let showSuggestions = $derived(
+        suggestions.length > 0 && hasFocus && !justSelected
+    );
 
-    // Debounce function to limit how often we update the search
-    function debounceSearch(value: string) {
+    // Debounce mechanism with cleanup
+    let debounceTimer: ReturnType<typeof setTimeout>;
+
+    function handleInput(value: string) {
+        query = value;
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
-            currentSearch = value;
-            selectionJustMade = false; // Reset the flag when user types
-            selectedIndex = -1; // Reset selection when search changes
-        }, 300); // 300ms debounce time
+            justSelected = false;
+            fetchSuggestions();
+        }, 300);
     }
 
     function performSearch() {
-        currentSearch = inputValue;
-        // Add any additional search functionality here
+        // Additional search logic could go here
+        if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
+            selectSuggestion(suggestions[selectedIndex]);
+        }
     }
 
-    // Function to format view count (e.g., 1000 -> 1K, 1000000 -> 1M)
+    // Format view count for display (1K, 1M, etc.)
     function formatViewCount(views: number): string {
         if (views >= 1000000) {
             return (views / 1000000).toFixed(1).replace(/\.0$/, "") + "M";
@@ -42,92 +51,79 @@
         return views.toString();
     }
 
-    $effect(() => {
-        // Update suggestions when search changes
-        updateSuggestions();
-    });
-
-    async function updateSuggestions() {
-        if (!currentSearch.trim()) {
+    async function fetchSuggestions() {
+        if (!query.trim()) {
             suggestions = [];
-            showSuggestions = false;
-            selectedIndex = -1; // Reset selection when no suggestions
             return;
         }
 
-        // Don't show suggestions if a selection was just made
-        if (selectionJustMade) {
-            return;
-        }
-
-        // Split search by spaces to get words
-        const words = currentSearch.trim().toLowerCase().split(/\s+/);
-        // Use the last word for suggestions
+        const words = query.trim().toLowerCase().split(/\s+/);
         const latestWord = words[words.length - 1];
 
-        if (latestWord) {
-            try {
-                // Query titleWords index for words starting with the latest word
-                const matchingNovels = (await novelDB.novels.where("titleWords").startsWithIgnoreCase(latestWord).distinct().sortBy("views"))
-                    .reverse()
-                    .slice(0, 10);
-
-                showSuggestions = matchingNovels.length > 0;
-                suggestions = matchingNovels;
-                selectedIndex = -1; // Reset selection when suggestions update
-            } catch (error) {
-                console.error("Error fetching suggestions:", error);
-                suggestions = [];
-                showSuggestions = false;
-                selectedIndex = -1;
-            }
-        } else {
+        if (!latestWord) {
             suggestions = [];
-            showSuggestions = false;
+            return;
+        }
+
+        try {
+            suggestions = (await novelDB.novels
+                .where("titleWords")
+                .startsWithIgnoreCase(latestWord)
+                .distinct()
+                .sortBy("views"))
+                .reverse()
+                .slice(0, 10);
+            
+            // Reset selection when suggestions update
             selectedIndex = -1;
+        } catch (error) {
+            console.error("Error fetching suggestions:", error);
+            suggestions = [];
         }
     }
 
     function selectSuggestion(novel: Novel) {
-        currentSearch = novel.title;
-        inputValue = novel.title;
-        showSuggestions = false;
-        selectionJustMade = true; // Set flag when selection is made
-        selectedIndex = -1; // Reset selection
+        query = novel.title;
+        justSelected = true;
+        suggestions = [];
+        selectedIndex = -1;
         novelSelected(novel);
     }
 
-    // Sync inputValue with currentSearch changes (e.g., when set programmatically)
-    $effect(() => {
-        inputValue = currentSearch;
-    });
+    function clearSearch() {
+        query = "";
+        suggestions = [];
+        selectedIndex = -1;
+        justSelected = false;
+        novelSelected(null);
+    }
 
     // Handle keyboard navigation
     function handleKeyNavigation(e: KeyboardEvent) {
-        if (!showSuggestions || suggestions.length === 0) return;
+        if (!showSuggestions) return;
         
         switch (e.key) {
             case "ArrowDown":
-                e.preventDefault(); // Prevent cursor from moving
+                e.preventDefault();
                 selectedIndex = (selectedIndex + 1) % suggestions.length;
                 scrollSelectedIntoView();
                 break;
             case "ArrowUp":
-                e.preventDefault(); // Prevent cursor from moving
+                e.preventDefault();
                 selectedIndex = selectedIndex <= 0 ? suggestions.length - 1 : selectedIndex - 1;
                 scrollSelectedIntoView();
                 break;
             case "Enter":
                 if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
-                    e.preventDefault(); // Prevent form submission
+                    e.preventDefault();
                     selectSuggestion(suggestions[selectedIndex]);
                 } else {
                     performSearch();
                 }
                 break;
             case "Escape":
-                showSuggestions = false;
-                selectedIndex = -1;
+                e.preventDefault();
+                suggestions = [];
                 break;
         }
     }
@@ -153,6 +149,13 @@
             }
         }, 10); // Small delay to ensure DOM is updated
     }
+
+    // Handle focus changes with a short delay to allow for clicks
+    function handleBlur() {
+        setTimeout(() => {
+            hasFocus = false;
+        }, 150);
+    }
 </script>
 
 <div class="flex w-full max-w-lg mx-auto items-center">
@@ -160,20 +163,24 @@
         <Input
             type="text"
             placeholder="Enter a book title..."
-            class="pl-4 pr-10 py-6"
-            bind:value={inputValue}
-            oninput={() => debounceSearch(inputValue)}
-            onfocus={() => {
-                if (suggestions.length > 0) showSuggestions = true;
-            }}
-            onblur={() => {
-                setTimeout(() => {
-                    showSuggestions = false;
-                    selectedIndex = -1;
-                }, 200); // Delay hiding suggestions to allow click events
-            }}
-            onkeydown={(e) => handleKeyNavigation(e)}
+            class={`pr-10 py-6 ${query ? 'pl-10' : 'pl-4'}`}
+            value={query}
+            oninput={(e) => handleInput(e.currentTarget.value)}
+            onfocus={() => { hasFocus = true; }}
+            onblur={handleBlur}
+            onkeydown={handleKeyNavigation}
         />
+        
+        {#if query}
+            <button
+                class="absolute left-3 top-1/2 -translate-y-1/2 h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer rounded-full hover:bg-muted transition-colors"
+                onclick={clearSearch}
+                aria-label="Clear search"
+            >
+                <X class="h-4 w-4" />
+            </button>
+        {/if}
+        
         <button
             class="absolute right-3 top-1/2 -translate-y-1/2 h-8 w-8 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer rounded-full hover:bg-muted transition-colors"
             onclick={performSearch}
@@ -189,10 +196,11 @@
             >
                 {#each suggestions as suggestion, i}
                     <button
-                        class="suggestion-item w-full text-left px-4 py-2 hover:bg-muted flex items-center justify-between {i === selectedIndex ? 'bg-muted' : ''}"
-                        onclick={() => {
-                            selectSuggestion(suggestion);
-                        }}
+                        class="suggestion-item w-full text-left px-4 py-2 
+                               border-l-2 {i === selectedIndex ? 'bg-muted border-l-primary' : 'border-transparent hover:bg-muted/50 hover:border-l-primary/50'} 
+                               flex items-center justify-between transition-colors"
+                        onclick={() => selectSuggestion(suggestion)}
+                        onmouseenter={() => selectedIndex = i}
                     >
                         <span>{suggestion.title}</span>
                         {#if suggestion.views !== undefined}

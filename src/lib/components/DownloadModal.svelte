@@ -58,6 +58,8 @@
 	let isFirstVisit = $state(true);
 	let isOpen = $state(false);
 	let downloadStarted = $state(false);
+	
+	// Define downloadItems using $state
 	let downloadItems = $state<DownloadItem[]>([
 		{
 			name: "Book Database",
@@ -74,7 +76,9 @@
 			completed: false,
 		},
 	]);
-	let allCompleted = $state(downloadItems.every((item) => item.completed));
+	
+	// Derived state - automatically updates when downloadItems changes
+	let allCompleted = $derived(downloadItems.every((item) => item.completed));
 
 	onMount(() => {
 		// Check if this is the first visit
@@ -88,50 +92,58 @@
 		}
 	});
 
+	// Update a download item's progress without manual spread
+	function updateDownloadItemProgress(index: number, progress: number) {
+		downloadItems[index].progress = Math.round(progress * 100);
+	}
+	
+	// Mark a download item as completed
+	function completeDownloadItem(index: number) {
+		downloadItems[index].progress = 100;
+		downloadItems[index].completed = true;
+	}
+
 	// Start the download process
 	async function startDownloads() {
 		console.log("Starting downloads, clearing existing data");
 		await novelDB.novels.clear(); // Clear existing data
-
+		downloadStarted = true;
+		
+		// Start book database download
 		importNovelsFromJsonl(
 			dataUrl,
-			(progress) => {
-				downloadItems[0].progress = Math.round(progress * 100);
-			},
-			() => {
-				downloadItems[0].progress = 100;
-				downloadItems[0].completed = true;
-			},
+			(progress) => updateDownloadItemProgress(0, progress),
+			() => completeDownloadItem(0),
 			(error) => {
 				console.error("Error importing novels", error);
-			},
+			}
 		);
 
-		console.log("Database cleared, starting download");
-		downloadStarted = true;
+		console.log("Database cleared, starting embeddings download");
 
-		const npy = new npyjs();
+		try {
+			const npy = new npyjs();
+			const embeddings = await npy.load(embeddingsUrl, {
+				onProgress: (loaded, total) => {
+					if (total) {
+						updateDownloadItemProgress(1, loaded / total);
+					}
+				},
+			});
 
-		const embeddings = await npy.load(embeddingsUrl, {
-			onProgress: (loaded, total) => {
-				downloadItems[1].progress = total
-					? Math.round((loaded / total) * 100)
-					: 0;
-			},
-		});
+			await vectorDB.embeddings.add({
+				vectors: embeddings,
+			});
 
-		vectorDB.embeddings.add({
-			vectors: embeddings,
-		});
-
-		downloadItems[1].completed = true;
-		localStorage.setItem("hasVisitedBooksite", "true");
+			completeDownloadItem(1);
+			localStorage.setItem("hasVisitedBooksite", "true");
+		} catch (error) {
+			console.error("Error loading embeddings", error);
+		}
 	}
 
 	function handleClose() {
-		if (allCompleted || !downloadStarted) {
-			isOpen = false;
-		}
+		window.location.reload();
 	}
 
 	function skipDownload() {
@@ -150,7 +162,7 @@
 			<AlertDialog.Description>
 				This book recommendation site uses local similarity search for
 				better performance and privacy. This requires downloading
-				approximately 120MB of data.
+				approximately 152MB of data.
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 
