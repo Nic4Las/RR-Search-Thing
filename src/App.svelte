@@ -3,6 +3,8 @@
 	import DownloadModal from "$lib/components/DownloadModal.svelte";
 	import BookList from "$lib/components/BookList.svelte";
     import type { Novel } from "./db/novels";
+    import BookListV2 from "$lib/components/BookListV2.svelte";
+    import Filters from "$lib/components/Filters.svelte";
 
 	let currentSearch = $state("");
 	let searchResult = $state<Novel|null>(null);
@@ -21,7 +23,7 @@
 				</p>
 				<SearchBar novelSelected={(novel) => searchResult = novel}></SearchBar>
 			</div>
-			<BookList similarNovel={searchResult}/>
+			<BookListV2 similarNovel={searchResult}/>
 		</section>
 	</main>
 </main>

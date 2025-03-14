@@ -16,6 +16,51 @@
     function toggleTags() {
         expandedTags = !expandedTags;
     }
+
+        /**
+     * Formats a description to be shown in a shortened form
+     * 
+     * @param description The full description text
+     * @param maxLength The maximum length of the shortened description
+     * @returns The formatted description with ellipsis if shortened
+     */
+     function formatDescription(description: string, maxLength: number = 200): string {
+        // If description is already shorter than maxLength, return it as is
+        if (description.length <= maxLength) {
+            return description;
+        }
+
+        // Check for line breaks first - prioritize breaking at a paragraph
+        const lineBreakIndex = description.indexOf('\n', 0);
+        if (lineBreakIndex > 0 && lineBreakIndex < maxLength) {
+            return description.slice(0, lineBreakIndex) + '\n...';
+        }
+
+        // Look within the allowed length
+        const textToSearch = description.slice(0, maxLength);
+        
+        // Try to find the last sentence ending (period, exclamation mark, or question mark)
+        const lastPeriodIndex = textToSearch.lastIndexOf('.');
+        const lastExclamationIndex = textToSearch.lastIndexOf('!');
+        const lastQuestionIndex = textToSearch.lastIndexOf('?');
+        
+        // Find the max of these indices (the latest sentence ending)
+        const sentenceEndIndex = Math.max(lastPeriodIndex, lastExclamationIndex, lastQuestionIndex);
+        
+        // If we found a sentence ending and it's not too early in the text
+        if (sentenceEndIndex > maxLength * 0.5) {
+            return description.slice(0, sentenceEndIndex + 1) + '\n...';
+        }
+        
+        // If no good sentence ending found, try to at least break at a space
+        const lastSpaceIndex = textToSearch.lastIndexOf(' ');
+        if (lastSpaceIndex > maxLength * 0.7) { // Only use space break if it's not too early
+            return description.slice(0, lastSpaceIndex) + '\n...';
+        }
+        
+        // If all else fails, just truncate at maxLength
+        return textToSearch + '...';
+    }
 </script>
 
 <Card class="overflow-hidden">
@@ -23,11 +68,13 @@
         <div class="flex flex-col">
             <div class="flex flex-row p-6 pb-2 items-start">
                 <div class="relative w-32 md:w-48 aspect-[2/3] shrink-0">
-                    <img
-                        src={book.cover !== "" ? book.cover : "https://www.royalroad.com/dist/img/nocover-new-min.png"}
-                        alt={`Cover of ${book.title}`}
-                        class="object-contain w-full h-full"
-                    />
+                    <a href={book.url}>
+                        <img
+                            src={book.cover !== "" ? book.cover : "https://www.royalroad.com/dist/img/nocover-new-min.png"}
+                            alt={`Cover of ${book.title}`}
+                            class="object-contain w-full h-full"
+                        />
+                    </a>
                 </div>
                 <div class="flex-1 pl-6">
                     <h3 class="text-xl font-bold">
@@ -77,7 +124,7 @@
 
                         <div>
                             <p class="text-sm whitespace-pre-line">
-                                {expandedDescription ? book.description : book.description.slice(0, 100) + "..."}
+                                {expandedDescription ? book.description : formatDescription(book.description, 200)}
                             </p>
                             <Button
                                 variant="ghost"
@@ -119,7 +166,7 @@
 
                 <div>
                     <p class="text-sm whitespace-pre-line">
-                        {expandedDescription ? book.description : book.description.slice(0, 100) + "..."}
+                        {expandedDescription ? book.description : formatDescription(book.description, 200)}
                     </p>
                     <Button variant="ghost" size="sm" class="mt-2 h-8 px-2" onclick={toggleDescription}>
                         {#if expandedDescription}

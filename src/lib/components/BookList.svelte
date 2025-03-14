@@ -6,6 +6,7 @@
     import vectorDB from "../../db/embeddings";
     import onnxModelUrl from "../../assets/vector_search.onnx?url";
     import BookCard from "$lib/components/BookCard.svelte";
+    import Filters from "./Filters.svelte";
 
     // Similar book data
     let { similarNovel }: { similarNovel: Novel | null } = $props();
@@ -83,6 +84,9 @@
 
 <div class="space-y-6">
     <h2 class="text-2xl font-semibold mb-4">Recommended Books</h2>
+
+
+
     <div class="space-y-4">
         {#each books as book (book.embeddingsIndex)}
             <BookCard {book} />

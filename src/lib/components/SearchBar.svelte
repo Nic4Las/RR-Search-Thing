@@ -154,7 +154,7 @@
     function handleBlur() {
         setTimeout(() => {
             hasFocus = false;
-        }, 150);
+        }, 300);
     }
 </script>
 
