@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Book, Eye, Heart, Star, ChevronDown, ChevronUp, BookOpen } from "lucide-svelte";
+    import { Book, Eye, Heart, Star, ChevronDown, ChevronUp, BookOpen, Share2 } from "lucide-svelte";
     import { Badge } from "$lib/components/ui/badge";
     import { Button } from "$lib/components/ui/button";
     import { Card, CardContent } from "$lib/components/ui/card";
@@ -17,7 +17,53 @@
         expandedTags = !expandedTags;
     }
 
-        /**
+    /**
+     * Share the book with others
+     */
+    async function shareBook() {
+        const shareData = {
+            title: book.title,
+            text: `Check out "${book.title}" on Royal Road`,
+            url: book.url
+        };
+
+        try {
+            if (navigator.share) {
+                await navigator.share(shareData);
+            } else {
+                // Fallback - copy link to clipboard
+                await navigator.clipboard.writeText(book.url);
+                alert('Link copied to clipboard!');
+            }
+        } catch (error) {
+            console.error('Error sharing:', error);
+        }
+    }
+
+    /**
+     * Formats a number to a simplified format with k, M, B suffixes
+     * 
+     * @param num The number to format
+     * @param digits Number of decimal digits to keep
+     * @returns Formatted number string
+     */
+    function formatNumber(num: number, digits: number = 1): string {
+        const lookup = [
+            { value: 1, symbol: "" },
+            { value: 1e3, symbol: "k" },
+            { value: 1e6, symbol: "M" },
+            { value: 1e9, symbol: "B" }
+        ];
+        const rx = /\.0+$|(\.[0-9]*[1-9])0+$/;
+        
+        const item = lookup.slice().reverse().find(item => num >= item.value);
+        
+        return item
+            ? (num / item.value).toFixed(digits).replace(rx, "$1") + item.symbol
+            : "0";
+    }
+
+    /**
      * Formats a description to be shown in a shortened form
      * 
      * @param description The full description text
@@ -114,12 +160,16 @@
                             </div>
                             <div class="flex items-center gap-1">
                                 <Heart class="h-4 w-4" />
-                                <span class="text-sm">{book.followingUsers}</span>
+                                <span class="text-sm">{formatNumber(book.followingUsers)}</span>
                             </div>
                             <div class="flex items-center gap-1">
                                 <Eye class="h-4 w-4" />
-                                <span class="text-sm">{book.views}</span>
+                                <span class="text-sm">{formatNumber(book.views)}</span>
                             </div>
+                            <Button variant="ghost" size="icon" class="h-8 w-8 p-0" onclick={shareBook}>
+                                <Share2 class="h-4 w-4" />
+                                <span class="sr-only">Share</span>
+                            </Button>
                         </div>
 
                         <div>
@@ -156,12 +206,16 @@
                     </div>
                     <div class="flex items-center gap-1">
                         <Heart class="h-4 w-4" />
-                        <span class="text-sm">{book.followingUsers}</span>
+                        <span class="text-sm">{formatNumber(book.followingUsers)}</span>
                     </div>
                     <div class="flex items-center gap-1">
                         <Eye class="h-4 w-4" />
-                        <span class="text-sm">{book.views}</span>
+                        <span class="text-sm">{formatNumber(book.views)}</span>
                     </div>
+                    <Button variant="ghost" size="icon" class="h-8 w-8 p-0" onclick={shareBook}>
+                        <Share2 class="h-4 w-4" />
+                        <span class="sr-only">Share</span>
+                    </Button>
                 </div>
 
                 <div>

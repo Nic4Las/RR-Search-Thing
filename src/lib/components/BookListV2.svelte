@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import * as ort from "onnxruntime-web/wasm";
+    import * as ort from "onnxruntime-web";
     import * as Pagination from "$lib/components/ui/pagination/index.js";
     import { novelDB, type Novel } from "../../db/novels";
     import vectorDB from "../../db/embeddings";
