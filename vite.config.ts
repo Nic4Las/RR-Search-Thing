@@ -16,6 +16,10 @@ export default defineConfig({
         short_name: 'RRSearch',
         description: 'RR Search Application',
         theme_color: '#ffffff',
+        background_color: '#ffffff',
+        display: 'standalone',
+        start_url: '/',
+        categories: ['productivity', 'utilities'],
         icons: [
           {
             src: 'pwa-192x192.png',
