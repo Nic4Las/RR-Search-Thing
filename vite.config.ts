@@ -15,25 +15,25 @@ export default defineConfig({
       manifest: {
         name: 'RR Search App',
         short_name: 'RRSearch',
-        description: 'RR Search Application',
+        description: 'Get Royal Road recommendations based on your preferences',
         theme_color: '#ffffff',
         background_color: '#ffffff',
         display: 'standalone',
-        start_url: '/',
+        start_url: '/RR-Search-Thing/',
         categories: ['productivity', 'utilities'],
         icons: [
           {
-            src: 'pwa-192x192.png',
+            src: '/RR-Search-Thing/pwa-192x192.png',
             sizes: '192x192',
             type: 'image/png'
           },
           {
-            src: 'pwa-512x512.png',
+            src: '/RR-Search-Thing/pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png'
           },
           {
-            src: 'pwa-512x512.png',
+            src: '/RR-Search-Thing/pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'
