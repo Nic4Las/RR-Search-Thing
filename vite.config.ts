@@ -18,7 +18,7 @@ export default defineConfig({
         description: 'Get Royal Road recommendations based on your preferences',
         theme_color: '#ffffff',
         background_color: '#ffffff',
-        display: 'standalone',
+        display: 'browser',
         start_url: '/RR-Search-Thing/',
         categories: ['productivity', 'utilities'],
         icons: [
