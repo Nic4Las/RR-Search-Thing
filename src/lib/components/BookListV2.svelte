@@ -187,7 +187,7 @@
         }
 
         if (filters != null) {
-            console.log(filters);
+            // console.log(filters);
             let orderBy = filters.orderBy;
             let orderDirection = filters.orderDirection;
 
