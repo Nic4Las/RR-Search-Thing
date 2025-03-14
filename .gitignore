@@ -23,3 +23,6 @@ dev-dist/
 *.njsproj
 *.sln
 *.sw?
+
+# old project files
+src/assets/old/*
