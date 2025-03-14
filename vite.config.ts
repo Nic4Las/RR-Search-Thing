@@ -6,6 +6,7 @@ import { viteStaticCopy } from 'vite-plugin-static-copy'
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: '/RR-Search-Thing/', // Add this line to set the correct base URL for GitHub Pages
   plugins: [
     svelte(),
     VitePWA({
