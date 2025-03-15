@@ -33,7 +33,7 @@
         }
     };
     // Remove LabelOption type as we're now using an array of strings
-    type LabelType = "Original" | "Fan Fiction";
+    export type LabelType = "Original" | "Fan Fiction";
     const labelOptions: LabelType[] = ["Original", "Fan Fiction"];
 
     export interface FilterState {

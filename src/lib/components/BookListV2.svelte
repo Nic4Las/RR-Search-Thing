@@ -6,7 +6,7 @@
     import vectorDB from "../../db/embeddings";
     import onnxModelUrl from "../../assets/vector_search.onnx?url";
     import BookCard from "$lib/components/BookCard.svelte";
-    import Filters, { type FilterState, type LastUpdatedOption } from "./Filters.svelte";
+    import Filters, { type FilterState, type LabelType, type LastUpdatedOption } from "./Filters.svelte";
 
     // Similar book data
     let { similarNovel }: { similarNovel: Novel | null } = $props();
@@ -72,10 +72,7 @@
         }
     };
 
-    const filterNovel = (
-        filters: FilterState,
-        novel: Novel
-    ): boolean => {
+    const filterNovel = (filters: FilterState, novel: Novel): boolean => {
         let minViews = filters.views[0];
         let maxViews = filters.views[1];
 
@@ -89,9 +86,9 @@
         let maxPages = filters.pages[1];
 
         let tags = filters.tags;
-        
+
         let labels = filters.labels;
-        
+
         let lastUpdated = filters.lastUpdated;
 
         let views = novel.views;
@@ -116,7 +113,7 @@
             return false;
         }
 
-        if (lastUpdatedDate > Date.now()-lastUpdatedOptionToInt(lastUpdated)) {
+        if (lastUpdatedDate > Date.now() - lastUpdatedOptionToInt(lastUpdated)) {
             return false;
         }
 
@@ -130,27 +127,20 @@
             }
         }
 
-        // if (labels) {
-        //     for (let label of labels) {
-        //         if (!novel.label.includes(label)) {
-        //             return false;
-        //         }
-        //     }
-        // }
+        if (labels) {
+            let novelLable = novel.label as LabelType;
+            if (labels.length > 0 && !labels.includes(novelLable)) {
+                return false;
+            }
+        }
 
         return true;
     };
 
-    const deriveNovels = async (
-        currentPage: number,
-        booksPerPage: number,
-        filters: FilterState | null,
-        similarNovelIndexes: number[] | null
-    ) => {
-
+    const deriveNovels = async (currentPage: number, booksPerPage: number, filters: FilterState | null, similarNovelIndexes: number[] | null) => {
         // useless shit to get svelte to check if i update the properties of an object
-        
-        if(filters){
+
+        if (filters) {
             filters.views[0];
             filters.views[1];
             filters.rating[0];
@@ -165,16 +155,15 @@
         }
 
         if (similarNovelIndexes) {
-            if(filters){
-                let similarBooksOrNull = ((await novelDB.novels.bulkGet(similarNovelIndexes))).slice(
+            if (filters) {
+                let similarBooksOrNull = (await novelDB.novels.bulkGet(similarNovelIndexes)).slice(
                     (currentPage - 1) * booksPerPage,
                     currentPage * booksPerPage
                 );
                 if (similarBooksOrNull) {
                     return similarBooksOrNull.filter((book) => book !== undefined).filter((novel) => filterNovel(filters, novel)) as Novel[];
                 }
-            }
-            else{
+            } else {
                 let similarBooksOrNull = (await novelDB.novels.bulkGet(similarNovelIndexes)).slice(
                     (currentPage - 1) * booksPerPage,
                     currentPage * booksPerPage
@@ -183,7 +172,6 @@
                     return similarBooksOrNull.filter((book) => book !== null) as Novel[];
                 }
             }
-
         }
 
         if (filters != null) {
@@ -227,7 +215,6 @@
     let similarNovelIndexes = $state<number[] | null>(null);
 
     $effect(() => {
-
         similarNovel;
         embeddings;
         session;
@@ -237,13 +224,7 @@
         });
     });
 
-
     let books = $derived.by(() => deriveNovels(currentPage, booksPerPage, filters, similarNovelIndexes));
-
-    // $inspect(similarNovelIndexes);
-    // $inspect(books);
-    // $inspect(totalBooks);
-    // $inspect(filters);
 </script>
 
 <div class="space-y-6">
@@ -297,23 +278,3 @@
         </div>
     {/await}
 </div>
-
-<style>
-    /* Tailwind utility for landscape mode */
-    @media (orientation: landscape) {
-        .landscape\:block {
-            display: block;
-        }
-        .landscape\:hidden {
-            display: none;
-        }
-        .landscape\:px-6 {
-            padding-left: 1.5rem;
-            padding-right: 1.5rem;
-        }
-        .landscape\:py-2 {
-            padding-top: 0.5rem;
-            padding-bottom: 0.5rem;
-        }
-    }
-</style>
