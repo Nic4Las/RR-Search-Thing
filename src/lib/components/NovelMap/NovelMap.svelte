@@ -74,6 +74,9 @@
     let previousTouchDistance = $state(0);
     let touchZooming = $state(false);
 
+    // timeout for auto-hiding tooltip on touch devices
+    let tooltipTimeout: NodeJS.Timeout | null = null;
+
     // Handle mouse down to start panning
     function handleMouseDown(e: { clientX: number; clientY: number }) {
         isPanning = true;
@@ -219,9 +222,27 @@
     }
 
     // Handle touch end
-    function handleTouchEnd() {
+    function handleTouchEnd(e: TouchEvent) {
         isPanning = false;
         touchZooming = false;
+        
+        // Check if the tap ended on a circle element or its descendants
+        const target = e.target as Element;
+        const wasNovelTap = target.tagName === 'circle' || 
+                           target.closest('circle') !== null;
+        
+        // Close tooltip when tapping on background (not on a novel point)
+        if (!wasNovelTap) {
+            tooltipVisible = false;
+            hoveredNovel = null;
+            hoveredPointRadius.set(1);
+            
+            // Clear any existing tooltip timeout
+            if (tooltipTimeout) {
+                clearTimeout(tooltipTimeout);
+                tooltipTimeout = null;
+            }
+        }
     }
 
     // Predefined filter percentage options
@@ -249,14 +270,32 @@
     $effect(() => {
         isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0)
     });
+
+    // Function to calculate classes based on hover state
+    const calcRadius = (novel: Novel) => {
+        // calculate radius based on views (sqrt for better scaling) between 5 and 15
+        let radius = 5 + (10 * Math.sqrt(novel.views / 25_000_000));
+        
+        // Get current zoom factor to use
+        const currentZoom = isActivelyZooming ? lastZoom : viewportZoom;
+        
+        if (hoveredNovel?.fictionId === novel.fictionId) {
+            // Apply a percentage boost (30%) instead of fixed +3 value
+            const hoverBoost = radius * 0.3;
+            return (radius + hoverBoost) / Math.sqrt(currentZoom);
+        } else {
+            return radius / Math.sqrt(currentZoom);
+        }
+    }
     
     // Handle point hover/tap
-    let hoveredPointRadius = tweened(0, {
+    let hoveredPointRadius = tweened(1, {
         duration: 150,
         easing: cubicOut
     });
     
     function handlePointInteraction(event: MouseEvent | TouchEvent, novel: Novel) {
+        event.stopPropagation(); // Prevent the background click from triggering
         const clientX = 'touches' in event ? event.touches[0].clientX : event.clientX;
         const clientY = 'touches' in event ? event.touches[0].clientY : event.clientY;
         
@@ -268,11 +307,14 @@
         
         // Auto-hide after some time on touch devices
         if (isTouchDevice) {
-            setTimeout(() => {
+            if (tooltipTimeout) {
+                clearTimeout(tooltipTimeout);
+            }
+            tooltipTimeout = setTimeout(() => {
                 tooltipVisible = false;
                 hoveredNovel = null;
                 hoveredPointRadius.set(1);
-            }, 3000);
+            }, 10000);
         }
     }
     
@@ -284,11 +326,14 @@
         }
     }
     
-    // Close tooltip when clicking/tapping outside
-    function handleBackgroundClick() {
-        tooltipVisible = false;
-        hoveredNovel = null;
-        hoveredPointRadius.set(1);
+    // Modify the background click handler to only close when it's not a direct point click
+    function handleBackgroundClick(event: MouseEvent) {
+        // Only close if it's a direct click on the background
+        if (event.target === event.currentTarget) {
+            tooltipVisible = false;
+            hoveredNovel = null;
+            hoveredPointRadius.set(1);
+        }
     }
 </script>
 
@@ -397,27 +442,20 @@
         >
             <svg class="w-full h-full" role="img">
                 <g transform={`translate(${viewportPos.x},${viewportPos.y}) scale(${isActivelyZooming ? tempZoom : viewportZoom})`}>
-                    {#each novels as novel}
-                        {@const isHovered = hoveredNovel?.fictionId === novel.fictionId}
-                        {@const baseRadius = isActivelyZooming ? 5 / lastZoom : 5 / viewportZoom}
-                        {@const pointRadius = isHovered ? baseRadius * $hoveredPointRadius : baseRadius}
+                    {#each novels.reverse() as novel}
+                        <!-- svelte-ignore a11y_mouse_events_have_key_events -->
                         <circle
                             cx={novel.x * 100}
                             cy={novel.y * 100}
-                            r={pointRadius}
-                            fill={isHovered 
-                                ? `hsl(${(novel.cluster / 25) * 360}, 100%, 50%)` 
-                                : `hsla(${(novel.cluster / 25) * 360}, 100%, 50%, 0.8)`}
-                            class={isHovered 
-                                ? "stroke-white cursor-pointer transition-all shadow-lg drop-shadow-md" 
-                                : "stroke-primary cursor-pointer"}
-                            stroke-width={isHovered 
-                                ? (isActivelyZooming ? 1.5 / lastZoom : 1.5 / viewportZoom) 
-                                : (isActivelyZooming ? 1 / lastZoom : 1 / viewportZoom)}
-                            onmouseenter={(e) => !isTouchDevice && handlePointInteraction(e, novel)}
+                            r={calcRadius(novel)}
+                            fill={`hsl(${(novel.cluster / 25) * 360}, 100%, 50%)`}
+                            class="stroke-primary cursor-pointer transition-all hover:shadow-sm hover:z-10"
+                            style="transform-box: fill-box; transform-origin: center; vector-effect: non-scaling-stroke; stroke-width: 1px; "
+                            onmouseover={(e) => handlePointInteraction(e, novel)}
                             onmouseleave={handlePointLeave}
-                            onclick={(e) => isTouchDevice && handlePointInteraction(e, novel)}
+                            onclick={(e) => handlePointInteraction(e, novel)}
                         />
+                        <!-- fill={`oklch(0.25 ${ 0.5 } ${(novel.cluster / 25) * 360}deg)`} -->
                     {/each}
                 </g>
             </svg>
