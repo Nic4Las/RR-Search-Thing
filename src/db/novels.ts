@@ -17,6 +17,9 @@ interface Novel {
     description: string;
     titleWords: string[];
     embeddingsIndex: number;
+    cluster: number;
+    x: number;
+    y: number;
 }
 
 interface NovelRaw {
@@ -34,6 +37,9 @@ interface NovelRaw {
     lastUpdated: number;
     description: string;
     embeddingsIndex: number;
+    cluster: number;
+    x: number;
+    y: number;
 }
 
 const novelDB = new Dexie('Novels') as Dexie & {
@@ -41,7 +47,7 @@ const novelDB = new Dexie('Novels') as Dexie & {
 };
 
 novelDB.version(1).stores({
-    novels: 'embeddingsIndex,title,fictionId,url,*tags,label,followingUsers,rating,pages,views,chapters,lastUpdated,description,*titleWords'
+    novels: 'embeddingsIndex,title,fictionId,url,*tags,label,followingUsers,rating,pages,views,chapters,lastUpdated,description,*titleWords,cluster,x,y'
 });
 
 export {novelDB};

@@ -9,7 +9,8 @@
         max, 
         step = 1, 
         values = $bindable(), 
-        formatValue = (val: number) => val ? val.toString() : '0'
+        formatValue = (val: number) => val ? val.toString() : '0',
+        logScale = false
     }: { 
         label: string; 
         values: [number, number]; 
@@ -17,6 +18,7 @@
         max: number; 
         step?: number; 
         formatValue?: (val: number) => string;
+        logScale?: boolean;
     } = $props();
     
     let showInputs = $state(false);

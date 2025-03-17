@@ -3,6 +3,7 @@ import path from "path";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { VitePWA } from "vite-plugin-pwa";
 import { viteStaticCopy } from 'vite-plugin-static-copy'
+import { resolve } from 'path';
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -16,9 +17,9 @@ export default defineConfig({
         name: 'RR Search App',
         short_name: 'RRSearch',
         description: 'Get Royal Road recommendations based on your preferences',
-        theme_color: '#ffffff',
-        background_color: '#ffffff',
-        display: 'browser',
+        theme_color: '#000000',
+        background_color: '#000000',
+        display: 'standalone',
         start_url: '/RR-Search-Thing/',
         categories: ['productivity', 'utilities'],
         icons: [
@@ -75,6 +76,8 @@ export default defineConfig({
   resolve: {
     alias: {
       $lib: path.resolve("./src/lib"),
+      '$src': resolve('./src'),
+      'src': resolve('./src')  // Add this line to map src/ imports to ./src
     },
   },
   assetsInclude: ["**/*.onnx"],

@@ -2,7 +2,7 @@
 	import npyjs from "$lib/numpyLoader";
 	import { AlertCircle, Database, FileAxis3d } from "@lucide/svelte";
 	import { onMount } from "svelte";
-	import dataUrl from "../../assets/data_cleaned_deduped_index.json?url";
+	import dataUrl from "../../assets/data_cleaned_deduped_index_clustered.json?url";
 	import embeddingsUrl from "../../assets/embeddings_deduped.npy?url";
 	import vectorDB from "../../db/embeddings";
 	import { novelDB } from "../../db/novels";
