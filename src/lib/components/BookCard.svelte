@@ -4,8 +4,10 @@
     import { Button } from "$lib/components/ui/button";
     import { Card, CardContent } from "$lib/components/ui/card";
     import type { Novel } from "../../db/novels";
+    import * as Tooltip from "./ui/tooltip";
+    import { Search } from "@lucide/svelte";
     
-    let { book, searchInMap }: { book: Novel, searchInMap: (novel: Novel) => void } = $props();
+    let { book, searchInMap, searchSimilar }: { book: Novel, searchInMap: (novel: Novel) => void, searchSimilar: (novel: Novel) => void} = $props();
     let expandedDescription = $state(false);
     let expandedTags = $state(false);
     
@@ -166,14 +168,48 @@
                                 <Eye class="h-4 w-4" />
                                 <span class="text-sm">{formatNumber(book.views)}</span>
                             </div>
-                            <Button variant="ghost" size="icon" class="h-8 w-8 p-0" onclick={shareBook}>
-                                <Share2 class="h-4 w-4" />
-                                <span class="sr-only">Share</span>
-                            </Button>
-                            <Button variant="ghost" size="icon" class="h-8 w-8 p-0" onclick={() => searchInMap(book)}>
-                                <MapPin class="h-4 w-4" />
-                                <span class="sr-only">Search in map</span>
-                            </Button>
+
+                            <Tooltip.Provider>
+                                <Tooltip.Root>
+                                  <Tooltip.Trigger>
+                                    <Button variant="ghost" size="icon" class="h-8 w-8 p-0" onclick={shareBook}>
+                                        <Share2 class="h-4 w-4" />
+                                        <span class="sr-only">Share</span>
+                                    </Button>
+                                  </Tooltip.Trigger>
+                                  <Tooltip.Content>
+                                    <p>Share This Novel</p>
+                                  </Tooltip.Content>
+                                </Tooltip.Root>
+                              </Tooltip.Provider>
+        
+                              <Tooltip.Provider>
+                                <Tooltip.Root>
+                                  <Tooltip.Trigger>
+                                    <Button variant="ghost" size="icon" class="h-8 w-8 p-0" onclick={() => searchInMap(book)}>
+                                        <MapPin class="h-4 w-4" />
+                                        <span class="sr-only">Search in map</span>
+                                    </Button>
+                                  </Tooltip.Trigger>
+                                  <Tooltip.Content>
+                                    <p>Show in Novel Map</p>
+                                  </Tooltip.Content>
+                                </Tooltip.Root>
+                              </Tooltip.Provider>
+
+                              <Tooltip.Provider>
+                                <Tooltip.Root>
+                                  <Tooltip.Trigger>
+                                    <Button variant="ghost" size="icon" class="h-8 w-8 p-0" onclick={() => searchSimilar(book)}>
+                                        <Search class="h-4 w-4" />
+                                        <span class="sr-only">Search Similar</span>
+                                    </Button>
+                                  </Tooltip.Trigger>
+                                  <Tooltip.Content>
+                                    <p>Search Similar</p>
+                                  </Tooltip.Content>
+                                </Tooltip.Root>
+                              </Tooltip.Provider>
                         </div>
 
                         <div>
@@ -216,14 +252,49 @@
                         <Eye class="h-4 w-4" />
                         <span class="text-sm">{formatNumber(book.views)}</span>
                     </div>
-                    <Button variant="ghost" size="icon" class="h-8 w-8 p-0" onclick={shareBook}>
-                        <Share2 class="h-4 w-4" />
-                        <span class="sr-only">Share</span>
-                    </Button>
-                    <Button variant="ghost" size="icon" class="h-8 w-8 p-0" onclick={() => searchInMap(book)}>
-                        <MapPin class="h-4 w-4" />
-                        <span class="sr-only">Search in map</span>
-                    </Button>
+
+                    <Tooltip.Provider>
+                        <Tooltip.Root>
+                          <Tooltip.Trigger>
+                            <Button variant="ghost" size="icon" class="h-8 w-8 p-0" onclick={shareBook}>
+                                <Share2 class="h-4 w-4" />
+                                <span class="sr-only">Share</span>
+                            </Button>
+                          </Tooltip.Trigger>
+                          <Tooltip.Content>
+                            <p>Share This Novel</p>
+                          </Tooltip.Content>
+                        </Tooltip.Root>
+                      </Tooltip.Provider>
+
+                      <Tooltip.Provider>
+                        <Tooltip.Root>
+                          <Tooltip.Trigger>
+                            <Button variant="ghost" size="icon" class="h-8 w-8 p-0" onclick={() => searchInMap(book)}>
+                                <MapPin class="h-4 w-4" />
+                                <span class="sr-only">Show in Novel Map</span>
+                            </Button>
+                          </Tooltip.Trigger>
+                          <Tooltip.Content>
+                            <p>Show in Novel Map</p>
+                          </Tooltip.Content>
+                        </Tooltip.Root>
+                      </Tooltip.Provider>
+
+                      <Tooltip.Provider>
+                        <Tooltip.Root>
+                          <Tooltip.Trigger>
+                            <Button variant="ghost" size="icon" class="h-8 w-8 p-0" onclick={() => searchSimilar(book)}>
+                                <Search class="h-4 w-4" />
+                                <span class="sr-only">Search Similar</span>
+                            </Button>
+                          </Tooltip.Trigger>
+                          <Tooltip.Content>
+                            <p>Search Similar</p>
+                          </Tooltip.Content>
+                        </Tooltip.Root>
+                      </Tooltip.Provider>
+
                 </div>
 
                 <div>

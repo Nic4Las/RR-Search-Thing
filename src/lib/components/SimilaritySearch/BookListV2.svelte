@@ -9,7 +9,7 @@
     import Filters, { type FilterState, type LabelType, type LastUpdatedOption } from "./Filters.svelte";
 
     // Similar book data
-    let { similarNovel, searchInMap }: { similarNovel: Novel | null, searchInMap: (novel: Novel) => void } = $props();
+    let { similarNovel, searchInMap, searchSimilar }: { similarNovel: Novel | null, searchInMap: (novel: Novel) => void, searchSimilar: (novel: Novel) => void} = $props();
 
     // onnx runtime session and embeddings tensor
     let session: ort.InferenceSession | null = null;
@@ -240,7 +240,7 @@
     {:then books}
         <div class="space-y-4">
             {#each books as book (book.embeddingsIndex)}
-                <BookCard {book} searchInMap={searchInMap} />
+                <BookCard {book} searchInMap={searchInMap} searchSimilar={searchSimilar} />
             {/each}
         </div>
     {/await}
