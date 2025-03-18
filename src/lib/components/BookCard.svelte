@@ -1,11 +1,11 @@
 <script lang="ts">
-    import { Book, Eye, Heart, Star, ChevronDown, ChevronUp, BookOpen, Share2 } from "lucide-svelte";
+    import { Book, Eye, Heart, Star, ChevronDown, ChevronUp, BookOpen, Share2, MapPin } from "lucide-svelte";
     import { Badge } from "$lib/components/ui/badge";
     import { Button } from "$lib/components/ui/button";
     import { Card, CardContent } from "$lib/components/ui/card";
     import type { Novel } from "../../db/novels";
     
-    let { book }: { book: Novel } = $props();
+    let { book, searchInMap }: { book: Novel, searchInMap: (novel: Novel) => void } = $props();
     let expandedDescription = $state(false);
     let expandedTags = $state(false);
     
@@ -170,6 +170,10 @@
                                 <Share2 class="h-4 w-4" />
                                 <span class="sr-only">Share</span>
                             </Button>
+                            <Button variant="ghost" size="icon" class="h-8 w-8 p-0" onclick={() => searchInMap(book)}>
+                                <MapPin class="h-4 w-4" />
+                                <span class="sr-only">Search in map</span>
+                            </Button>
                         </div>
 
                         <div>
@@ -215,6 +219,10 @@
                     <Button variant="ghost" size="icon" class="h-8 w-8 p-0" onclick={shareBook}>
                         <Share2 class="h-4 w-4" />
                         <span class="sr-only">Share</span>
+                    </Button>
+                    <Button variant="ghost" size="icon" class="h-8 w-8 p-0" onclick={() => searchInMap(book)}>
+                        <MapPin class="h-4 w-4" />
+                        <span class="sr-only">Search in map</span>
                     </Button>
                 </div>
 

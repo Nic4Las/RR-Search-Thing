@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount } from "svelte";
+    import { onMount, untrack } from "svelte";
     import { novelDB } from "src/db/novels";
     import { Button } from "$lib/components/ui/button";
     import { Settings, PercentIcon, BookOpen, Eye, FileText, Star } from "lucide-svelte";
@@ -11,18 +11,25 @@
     import RangeSlider from "../RangeSlider.svelte";
     import NovelTooltip from "./NovelTooltip.svelte";
     import type { Novel } from "../../../db/novels";
-    import { tweened } from 'svelte/motion';
-    import { cubicOut } from 'svelte/easing';
+    import { tweened } from "svelte/motion";
+    import { cubicOut } from "svelte/easing";
+    import * as Select from "$lib/components/ui/select";
+    import * as d3 from "d3";
 
-    let filterPercent = $state(0.5);
 
+    let { mapQuery = null }: { mapQuery: Novel | null } = $props(); 
+
+    let filterPercent = $state(0.2);
     let filterPages = $state<[number, number]>([0, 20_000]);
-
     let filterViews = $state<[number, number]>([0, 75_000_000]);
-
     let filterChapters = $state<[number, number]>([0, 2_000]);
-
     let filterRating = $state<[number, number]>([0, 5]);
+
+    type MapTypes = "UMAP" | "PaCMAP";
+    let selectedMap: MapTypes = $state("UMAP");
+
+    type ColorByTypes = "Clusters" | "Rating" | "Views" | "Favorites" | "Chapters" | "Pages";
+    let colorBy: ColorByTypes = $state("Clusters");
 
     let novels = $derived.by(async () => await novelDB.novels.orderBy("views").reverse().toArray());
 
@@ -39,20 +46,18 @@
 
         let localNovels = await novels;
 
-        return localNovels
-            .slice(0, Math.floor(localNovels.length * filterPercent))
-            .filter((novel) => {
-                return (
-                    novel.pages >= filterMinPages &&
-                    novel.pages <= filterMaxPages &&
-                    novel.views >= filterMinViews &&
-                    novel.views <= filterMaxViews &&
-                    novel.rating >= filterMinRating &&
-                    novel.rating <= filterMaxRating &&
-                    novel.chapters >= filterMinChapters &&
-                    novel.chapters <= filterMaxChapters
-                );
-            });
+        return localNovels.slice(0, Math.floor(localNovels.length * filterPercent)).filter((novel) => {
+            return (
+                novel.pages >= filterMinPages &&
+                novel.pages <= filterMaxPages &&
+                novel.views >= filterMinViews &&
+                novel.views <= filterMaxViews &&
+                novel.rating >= filterMinRating &&
+                novel.rating <= filterMaxRating &&
+                novel.chapters >= filterMinChapters &&
+                novel.chapters <= filterMaxChapters
+            );
+        });
     });
 
     type ViewPos = { x: number; y: number };
@@ -225,18 +230,17 @@
     function handleTouchEnd(e: TouchEvent) {
         isPanning = false;
         touchZooming = false;
-        
+
         // Check if the tap ended on a circle element or its descendants
         const target = e.target as Element;
-        const wasNovelTap = target.tagName === 'circle' || 
-                           target.closest('circle') !== null;
-        
+        const wasNovelTap = target.tagName === "circle" || target.closest("circle") !== null;
+
         // Close tooltip when tapping on background (not on a novel point)
         if (!wasNovelTap) {
             tooltipVisible = false;
             hoveredNovel = null;
             hoveredPointRadius.set(1);
-            
+
             // Clear any existing tooltip timeout
             if (tooltipTimeout) {
                 clearTimeout(tooltipTimeout);
@@ -247,7 +251,7 @@
 
     // Predefined filter percentage options
     const percentOptions = [0.2, 0.4, 0.6, 0.8, 1.0];
-    
+
     // Function to get human-readable percentage
     function formatPercent(value: number): string {
         return `${Math.round(value * 100)}%`;
@@ -263,22 +267,22 @@
     let tooltipVisible = $state(false);
     let tooltipX = $state(0);
     let tooltipY = $state(0);
-    
+
     // Detect if device is touch-based
     let isTouchDevice = $state(false);
-    
+
     $effect(() => {
-        isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0)
+        isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
     });
 
     // Function to calculate classes based on hover state
     const calcRadius = (novel: Novel) => {
         // calculate radius based on views (sqrt for better scaling) between 5 and 15
-        let radius = 5 + (10 * Math.sqrt(novel.views / 25_000_000));
-        
+        let radius = 3 + 10 * Math.sqrt(novel.views / 75_000_000);
+
         // Get current zoom factor to use
         const currentZoom = isActivelyZooming ? lastZoom : viewportZoom;
-        
+
         if (hoveredNovel?.fictionId === novel.fictionId) {
             // Apply a percentage boost (30%) instead of fixed +3 value
             const hoverBoost = radius * 0.3;
@@ -286,25 +290,50 @@
         } else {
             return radius / Math.sqrt(currentZoom);
         }
-    }
-    
+    };
+
+    const calcColor = (novel: Novel) => {
+        const colorScaleLinTurbo = d3.scaleSequential(d3.interpolateTurbo)
+        const colorScaleSqrtTurbo = d3.scaleSequentialSqrt(d3.interpolateTurbo)
+
+        const colorScaleLinRdYlGn = d3.scaleSequential(d3.interpolateRdYlGn)
+        const colorScaleSqrtRdYlGn = d3.scaleSequentialSqrt(d3.interpolateRdYlGn)
+        
+        switch (colorBy) {
+            case "Clusters":
+                return `hsl(${selectedMap === "UMAP" ? (novel.cluster_UMAP / 25) * 360 : (novel.cluster_PaCMAP / 25) * 360}, 100%, 50%)`;
+            case "Rating":
+                return colorScaleSqrtRdYlGn(novel.rating/5);
+            case "Views":
+                return colorScaleSqrtRdYlGn(novel.views/75_000_000);
+            case "Favorites":
+                return colorScaleSqrtRdYlGn(novel.followingUsers / 1_000_000);
+            case "Chapters":
+                return colorScaleLinRdYlGn(novel.chapters / 2_000);
+            case "Pages":
+                return colorScaleSqrtRdYlGn(novel.pages / 20_000);
+            default:
+                return "black";
+        }
+    };
+
     // Handle point hover/tap
     let hoveredPointRadius = tweened(1, {
         duration: 150,
-        easing: cubicOut
+        easing: cubicOut,
     });
-    
+
     function handlePointInteraction(event: MouseEvent | TouchEvent, novel: Novel) {
         event.stopPropagation(); // Prevent the background click from triggering
-        const clientX = 'touches' in event ? event.touches[0].clientX : event.clientX;
-        const clientY = 'touches' in event ? event.touches[0].clientY : event.clientY;
-        
+        const clientX = "touches" in event ? event.touches[0].clientX : event.clientX;
+        const clientY = "touches" in event ? event.touches[0].clientY : event.clientY;
+
         hoveredNovel = novel;
         hoveredPointRadius.set(1.5); // Will animate to 1.5x size
         tooltipX = clientX + 10; // Offset slightly
         tooltipY = clientY + 10;
         tooltipVisible = true;
-        
+
         // Auto-hide after some time on touch devices
         if (isTouchDevice) {
             if (tooltipTimeout) {
@@ -317,7 +346,7 @@
             }, 10000);
         }
     }
-    
+
     function handlePointLeave() {
         if (!isTouchDevice) {
             tooltipVisible = false;
@@ -325,7 +354,7 @@
             hoveredPointRadius.set(1);
         }
     }
-    
+
     // Modify the background click handler to only close when it's not a direct point click
     function handleBackgroundClick(event: MouseEvent) {
         // Only close if it's a direct click on the background
@@ -335,11 +364,43 @@
             hoveredPointRadius.set(1);
         }
     }
+
+    $effect(() => {
+        if(mapQuery === null) return;
+        const novel = mapQuery;
+
+        hoveredNovel = novel;
+        hoveredPointRadius.set(2);
+
+        // First set the zoom levels
+        const targetZoom = 2.5;
+        viewportZoom = targetZoom;
+        tempZoom = targetZoom;
+        lastZoom = targetZoom;
+
+        // Calculate novel position in SVG space
+        const novelPosX = selectedMap == "UMAP" ? novel.x_UMAP * 100 : novel.x_PaCMAP * 100;
+        const novelPosY = selectedMap == "UMAP" ? novel.y_UMAP * 100 : novel.y_PaCMAP * 100;
+
+        // Calculate viewport position to center the novel
+        viewportPos = {
+            x: window.innerWidth / 2 - (novelPosX * targetZoom),
+            y: window.innerHeight / 2 - (novelPosY * targetZoom)
+        };
+
+        // Calculate screen coordinates for the tooltip
+        const screenX = (novelPosX * targetZoom) + untrack(() => viewportPos.x);
+        const screenY = (novelPosY * targetZoom) + untrack(() => viewportPos.y);
+
+        // Position tooltip slightly to the right and vertically centered
+        tooltipX = screenX + 20;
+        tooltipY = screenY;
+        tooltipVisible = true;
+    });
+
 </script>
 
 <section class="fixed inset-0 overflow-hidden">
-    <h1 class="text-3xl md:text-4xl font-bold text-center absolute top-4 left-0 right-0 z-10">Novels:</h1>
-    
     <Popover.Root>
         <Popover.Trigger class="absolute bottom-4 left-4 z-20">
             <Button size="icon" variant="outline">
@@ -356,27 +417,46 @@
                             <span>Showing {formatPercent(filterPercent)}</span>
                         </span>
                     </div>
-                    <p class="text-muted-foreground text-sm mt-1.5">
-                        Configure which novels appear on the map.
-                    </p>
+                    <p class="text-muted-foreground text-sm mt-1.5">Configure which novels appear on the map.</p>
                 </div>
-                
+
                 <div class="space-y-3">
                     <Label class="text-sm">Filter Percentage</Label>
                     <div class="flex gap-1.5 mt-1.5">
                         {#each percentOptions as percent}
-                            <Button 
+                            <Button
                                 variant={filterPercent === percent ? "default" : "outline"}
                                 size="sm"
-                                class={cn(
-                                    "flex-1 transition-all",
-                                    filterPercent === percent && "shadow-md"
-                                )}
-                                onclick={() => filterPercent = percent}
+                                class={cn("flex-1 transition-all", filterPercent === percent && "shadow-md")}
+                                onclick={() => (filterPercent = percent)}
                             >
                                 {formatPercent(percent)}
                             </Button>
-                        {/each}
+                        {/each}                        
+                    </div>
+
+
+                    <div class="flex items-center gap-4">
+                        <Select.Root type="single" bind:value={selectedMap} name="mapType">
+                            <Select.Trigger class="w-[180px]">{selectedMap}</Select.Trigger>
+                            <Select.Content>
+                                <Select.Item value="UMAP">UMAP</Select.Item>
+                                <Select.Item value="PaCMAP">PaCMAP</Select.Item>
+                            </Select.Content>
+                        </Select.Root>
+
+                        <!-- type ColorByTypes = "cluster" | "rating" | "views" | "favorites" | "chapters" | "pages"; -->
+                        <Select.Root type="single" bind:value={colorBy} name="mapType">
+                            <Select.Trigger class="w-[180px]">{colorBy}</Select.Trigger>
+                            <Select.Content>
+                                <Select.Item value="Clusters">Clusters</Select.Item>
+                                <Select.Item value="Rating">Rating</Select.Item>
+                                <Select.Item value="Views">Views</Select.Item>
+                                <Select.Item value="Favorites">Favorites</Select.Item>
+                                <Select.Item value="Chapters">Chapters</Select.Item>
+                                <Select.Item value="Pages">Pages</Select.Item>
+                            </Select.Content>
+                        </Select.Root>
                     </div>
                 </div>
 
@@ -393,21 +473,21 @@
                                         <RangeSlider label="Pages" bind:values={filterPages} min={0} max={20000} step={100} />
                                     </div>
                                 </div>
-                                
+
                                 <div class="flex items-center gap-4">
                                     <Eye class="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                                     <div class="w-full mx-4">
                                         <RangeSlider label="Views" bind:values={filterViews} min={0} max={75000000} step={1000000} />
                                     </div>
                                 </div>
-                                
+
                                 <div class="flex items-center gap-4">
                                     <FileText class="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                                     <div class="w-full mx-4">
                                         <RangeSlider label="Chapters" bind:values={filterChapters} min={0} max={2000} step={10} />
                                     </div>
                                 </div>
-                                
+
                                 <div class="flex items-center gap-4">
                                     <Star class="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                                     <div class="w-full mx-4">
@@ -445,10 +525,10 @@
                     {#each novels.reverse() as novel}
                         <!-- svelte-ignore a11y_mouse_events_have_key_events -->
                         <circle
-                            cx={novel.x * 100}
-                            cy={novel.y * 100}
+                            cx={selectedMap == "UMAP" ? novel.x_UMAP * 100 : novel.x_PaCMAP * 100}
+                            cy={selectedMap == "UMAP" ? novel.y_UMAP * 100 : novel.y_PaCMAP * 100}
                             r={calcRadius(novel)}
-                            fill={`hsl(${(novel.cluster / 25) * 360}, 100%, 50%)`}
+                            fill={calcColor(novel)}
                             class="stroke-primary cursor-pointer transition-all hover:shadow-sm hover:z-10"
                             style="transform-box: fill-box; transform-origin: center; vector-effect: non-scaling-stroke; stroke-width: 1px; "
                             onmouseover={(e) => handlePointInteraction(e, novel)}
@@ -460,11 +540,6 @@
                 </g>
             </svg>
         </div>
+        <NovelTooltip novel={hoveredNovel} x={tooltipX} y={tooltipY} visible={tooltipVisible} />
     {/await}
-    <NovelTooltip 
-        novel={hoveredNovel} 
-        x={tooltipX} 
-        y={tooltipY} 
-        visible={tooltipVisible} 
-    />
 </section>

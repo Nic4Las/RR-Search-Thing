@@ -4,7 +4,6 @@
 // Add imports for the theme switcher
     import { Button } from "$lib/components/ui/button/index.js";
     import BookOpen from "@lucide/svelte/icons/book-open";
-    import Heart from "@lucide/svelte/icons/heart";
     import Home from "@lucide/svelte/icons/home";
     import Map from "@lucide/svelte/icons/map";
     import Menu from "@lucide/svelte/icons/menu";
@@ -19,9 +18,11 @@
 
     type Pages = "home" | "favorites" | "novel_map";
 
-    let currentSearch = $state("");
     let searchResult = $state<Novel | null>(null);
     let currentPage = $state<Pages>("home");
+
+    // map query
+    let mapQuery = $state<Novel|null>(null);
 
     // Mobile menu state
     let mobileMenuOpen = $state(false);
@@ -43,6 +44,11 @@
         currentPage = page;
         mobileMenuOpen = false; // Close mobile menu after navigation
     }
+
+    const searchInMap = (novel: Novel) => {
+        currentPage = "novel_map";
+        mapQuery = novel;
+    };
 </script>
 
 <ModeWatcher />
@@ -136,10 +142,10 @@
     <DownloadModal />
 
     {#if currentPage === "home"}
-        <SimilaritySearch {searchResult} />
+        <SimilaritySearch {searchResult} searchInMap={searchInMap} />
     {:else if currentPage === "favorites"}
         <h1>Favorites</h1>
     {:else if currentPage === "novel_map"}
-        <NovelMap />
+        <NovelMap mapQuery={mapQuery} />
     {/if}
 </main>

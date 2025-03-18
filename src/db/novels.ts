@@ -17,9 +17,12 @@ interface Novel {
     description: string;
     titleWords: string[];
     embeddingsIndex: number;
-    cluster: number;
-    x: number;
-    y: number;
+    cluster_PaCMAP: number;
+    x_PaCMAP: number;
+    y_PaCMAP: number;
+    cluster_UMAP: number;
+    x_UMAP: number;
+    y_UMAP: number;
 }
 
 interface NovelRaw {
@@ -37,9 +40,12 @@ interface NovelRaw {
     lastUpdated: number;
     description: string;
     embeddingsIndex: number;
-    cluster: number;
-    x: number;
-    y: number;
+    cluster_PaCMAP: number;
+    x_PaCMAP: number;
+    y_PaCMAP: number;
+    cluster_UMAP: number;
+    x_UMAP: number;
+    y_UMAP: number;
 }
 
 const novelDB = new Dexie('Novels') as Dexie & {

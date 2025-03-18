@@ -9,7 +9,7 @@
     import Filters, { type FilterState, type LabelType, type LastUpdatedOption } from "./Filters.svelte";
 
     // Similar book data
-    let { similarNovel }: { similarNovel: Novel | null } = $props();
+    let { similarNovel, searchInMap }: { similarNovel: Novel | null, searchInMap: (novel: Novel) => void } = $props();
 
     // onnx runtime session and embeddings tensor
     let session: ort.InferenceSession | null = null;
@@ -46,7 +46,7 @@
             let output = await session.run({
                 query: inputTensor,
                 corpus: embeddings,
-                top_k: new ort.Tensor("int64", [100], [1]),
+                top_k: new ort.Tensor("int64", [1000], [1]),
             });
 
             return Array.from(output.index.data as BigInt64Array).map((index) => Number(index));
@@ -72,7 +72,10 @@
         }
     };
 
-    const filterNovel = (filters: FilterState, novel: Novel): boolean => {
+    const filterNovel = (filters: FilterState, novel: Novel|undefined): boolean => {
+        
+        if(!novel) return false;
+        
         let minViews = filters.views[0];
         let maxViews = filters.views[1];
 
@@ -156,13 +159,10 @@
 
         if (similarNovelIndexes) {
             if (filters) {
-                let similarBooksOrNull = (await novelDB.novels.bulkGet(similarNovelIndexes)).slice(
+                return (await novelDB.novels.bulkGet(similarNovelIndexes)).filter((novel) => filterNovel(filters, novel)).slice(
                     (currentPage - 1) * booksPerPage,
                     currentPage * booksPerPage
-                );
-                if (similarBooksOrNull) {
-                    return similarBooksOrNull.filter((book) => book !== undefined).filter((novel) => filterNovel(filters, novel)) as Novel[];
-                }
+                ) as Novel[];
             } else {
                 let similarBooksOrNull = (await novelDB.novels.bulkGet(similarNovelIndexes)).slice(
                     (currentPage - 1) * booksPerPage,
@@ -240,7 +240,7 @@
     {:then books}
         <div class="space-y-4">
             {#each books as book (book.embeddingsIndex)}
-                <BookCard {book} />
+                <BookCard {book} searchInMap={searchInMap} />
             {/each}
         </div>
     {/await}
